@@ -45,7 +45,7 @@ The code is organized in a series of Jupyter notebooks. All notebook paths are r
  ┃ ┣ 📜2025_preds_data.parquet
  ┃ ┣ 📜2025_preds_summary.csv
  ┃ ┗ 📜viz.ipynb
- ┣ 📜RADME.md
+ ┣ 📜README.md
 ```
 
 # Installation
