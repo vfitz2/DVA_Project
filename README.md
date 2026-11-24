@@ -129,7 +129,7 @@ To rebuild everything run the notebooks in this order.
         2. [Data Collection + EDA/eda_mmcdowell.ipynb](<Data Collection + EDA/eda_mmcdowell.ipynb>)
     3. [Data Collection + EDA/feature_engr.ipynb](<Data Collection + EDA/feature_engr.ipynb>)
 
-2. Go to Baseline Model Eval folder:
+2. Go to Baseline Model Eval folder (Optional -for model comparison only):
     1. [Baseline Model Eval/baseline_model_nn.ipynb](<Baseline Model Eval/baseline_model_nn.ipynb>)
     2. [Baseline Model Eval/baseline_model_xgb.ipynb](<Baseline Model Eval/baseline_model_xgb.ipynb>)
 
