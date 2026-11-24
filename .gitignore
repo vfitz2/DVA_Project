@@ -1,4 +1,6 @@
 .git
+/App/data/*
+!/App/data/.gitkeep
 /data/*
 !/data/.gitkeep
 /results/*
