@@ -1,0 +1,15 @@
+jupyterlab
+pandas
+polars
+pyarrow
+numpy
+scipy
+matplotlib
+seaborn
+scikit-learn
+xgboost
+shap
+tqdm
+pybaseball
+requests
+pytz

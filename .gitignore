@@ -1,0 +1,10 @@
+.git
+/data/*
+!/data/.gitkeep
+/results/*
+!/results/.gitkeep
+/viz/2025_preds_data.*
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+venv/
