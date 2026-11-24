@@ -12,18 +12,24 @@ The code is organized in a series of Jupyter notebooks. All notebook paths are r
  ```
 📦Code
  ┣ 📂Baseline Model Eval
+ ┃ ┣ 📜baseline_model_logr.ipynb
  ┃ ┣ 📜baseline_model_nn.ipynb
  ┃ ┗ 📜baseline_model_xgb.ipynb
  ┣ 📂data
- ┃ ┗ 📂processed
+ ┃ ┣ 📂processed
  ┃ ┃ ┣ 📂features
+ ┃ ┃ ┃ ┗ 📜feature_cols.csv
  ┃ ┃ ┣ 📂response_cols
+ ┃ ┃ ┃ ┗ 📜response_cols.csv
  ┃ ┃ ┣ 📂test
+ ┃ ┃ ┃ ┗ 📜test_data.parquet
  ┃ ┃ ┣ 📂train
+ ┃ ┃ ┃ ┗ 📜train_data.parquet
  ┃ ┃ ┣ 📜statcast_2022.parquet
  ┃ ┃ ┣ 📜statcast_2023.parquet
  ┃ ┃ ┣ 📜statcast_2024.parquet
  ┃ ┃ ┗ 📜statcast_2025.parquet
+ ┃ ┗ 📜.gitkeep
  ┣ 📂Data Collection + EDA
  ┃ ┣ 📂__pycache__
  ┃ ┃ ┗ 📜api_scraper.cpython-311.pyc
@@ -35,17 +41,26 @@ The code is organized in a series of Jupyter notebooks. All notebook paths are r
  ┣ 📂Extra
  ┃ ┗ 📜polars-cheatsheet.pdf
  ┣ 📂figs
+ ┃ ┣ 📜XGB_WrongCall_Confusion.png
+ ┃ ┗ 📜XGB_WrongCall_Diagnostics.png
  ┣ 📂Final Model
  ┃ ┗ 📜xgb.ipynb
  ┣ 📂results
  ┃ ┣ 📂raw
- ┃ ┗ 📂stats
+ ┃ ┃ ┣ 📜xgb_baseline_predictions_vs_actuals.csv
+ ┃ ┃ ┗ 📜xgb_predictions_vs_actuals.csv
+ ┃ ┣ 📂stats
+ ┃ ┃ ┣ 📜xgb_baseline_metrics.csv
+ ┃ ┃ ┗ 📜xgb_metrics.csv
+ ┃ ┗ 📜.gitkeep
  ┣ 📂viz
- ┃ ┣ 📜2025_preds_data.csv
- ┃ ┣ 📜2025_preds_data.parquet
+ ┃ ┣ 📜.gitkeep
  ┃ ┣ 📜2025_preds_summary.csv
  ┃ ┗ 📜viz.ipynb
+ ┣ 📜.gitignore
  ┣ 📜README.md
+ ┣ 📜README_OLD.txt
+ ┗ 📜requirements.txt
 ```
 
 # Installation
@@ -130,11 +145,12 @@ To rebuild everything run the notebooks in this order.
     3. [Data Collection + EDA/feature_engr.ipynb](<Data Collection + EDA/feature_engr.ipynb>)
 
 2. Go to Baseline Model Eval folder (Optional -for model comparison only):
-    1. [Baseline Model Eval/baseline_model_nn.ipynb](<Baseline Model Eval/baseline_model_nn.ipynb>)
-    2. [Baseline Model Eval/baseline_model_xgb.ipynb](<Baseline Model Eval/baseline_model_xgb.ipynb>)
+    1. [Baseline Model Eval/baseline_model_logr.ipynb](<Baseline Model Eval/baseline_model_logr.ipynb>)
+    2. [Baseline Model Eval/baseline_model_nn.ipynb](<Baseline Model Eval/baseline_model_nn.ipynb>) (Takes 30min-1hr to run)
+    3. [Baseline Model Eval/baseline_model_xgb.ipynb](<Baseline Model Eval/baseline_model_xgb.ipynb>) (Takes 5-10min to run)
 
 3. Go to Final Model folder:
-    1. [Final Model/xgb.ipynb](<Final Model/xgb.ipynb>)
+    1. [Final Model/xgb.ipynb](<Final Model/xgb.ipynb>) (Takes 5-10 min to run)
 
 4. Go to viz folder:
     1. [viz/viz.ipynb](viz/viz.ipynb)
