@@ -13,3 +13,4 @@ tqdm
 pybaseball
 requests
 pytz
+streamlit
