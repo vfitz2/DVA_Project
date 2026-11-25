@@ -286,19 +286,127 @@ def load_model():
     model["model"].set_params(xgb__device="cpu")
     return model
 
-def load_model_data():
-    df = pd.read_parquet(DATA_PATH, columns=columns)
+def load_model_data(c):
+    df = pd.read_parquet(DATA_PATH, columns=c)
     return df
 
 def render_predict():
     st.subheader("Predict a new pitch")
+    cols = ['release_speed', 'release_spin_rate', 'pitch_cat', 'balls', 'strikes',
+       'inning', 'outs_when_up', 'stand', 'p_throws',
+       'n_thruorder_pitcher', 'sz_top', 'sz_bot', 'called_strike',
+       'pitch_number', 'pitcher_days_since_prev_game', 'hp_official_id','hp_official_name'
+       ]
     model = load_model()
-    data = load_model_data
-    with st.form("predict_form"):
-        c1, c2 = st.columns(2)
-        #stand      = c1.radio("Batter side", data["Batter side"].dropna().unique(), horizontal=True)
-        st.dataframe(model["dtypes"])
-        st.write(data.dtypes)  
+    data = load_model_data(cols)
+    with st.sidebar:
+        with st.form("predict_form"):
+            print(data["release_speed"].min())
+            stand = st.radio("Batter Side", list(data["stand"].unique()), horizontal=True)
+            p_throws = st.radio("Pitcher Side", list(data["p_throws"].unique()), horizontal=True)
+            speed = st.slider(
+                "Pitch Speed", 
+                data["release_speed"].min(), 
+                data["release_speed"].max(),
+                 data["release_speed"].median()
+                 )
+            spin = speed = st.slider(
+                "Pitch Spin Rate", 
+                data["release_spin_rate"].min(),
+                data["release_spin_rate"].max(), 
+                data["release_spin_rate"].median()
+                )
+            p_cat = st.selectbox("Pitch Category", list(data["pitch_cat"].unique()))
+            balls = st.selectbox("Balls", list(data["balls"].unique()))
+            strikes = st.selectbox("Strikes", list(data["strikes"].unique()))
+            inning = st.selectbox("Inning", list(data["inning"].unique()))
+            outs = st.selectbox("Outs", list(data["outs_when_up"].unique()))
+            n_thruorder_pitcher = st.selectbox(
+                "Times Through Order", sorted(data["n_thruorder_pitcher"].dropna().unique())
+            )
+            sz_top = st.slider(
+                "Strike Zone Top (ft)",
+                float(data["sz_top"].min()),
+                float(data["sz_top"].max()),
+                float(data["sz_top"].median()),
+                step=0.1,
+            )
+            sz_bot = st.slider(
+                "Strike Zone Bottom (ft)",
+                float(data["sz_bot"].min()),
+                float(data["sz_bot"].max()),
+                float(data["sz_bot"].median()),
+                step=0.1,
+            )
+            called_strike = st.selectbox(
+                "Called Strike (1=yes/0=No)", data["called_strike"].dropna().unique()
+            )
+            pitch_number = st.slider(
+            "Pitch Number",
+            int(data["pitch_number"].min()),
+            int(data["pitch_number"].max()),
+            int(data["pitch_number"].median()),
+            step=1,
+                )
+            pitcher_days_since_prev_game = st.slider(
+                "Days Since Previous Game",
+                int(data["pitcher_days_since_prev_game"].min()),
+                int(data["pitcher_days_since_prev_game"].max()),
+                int(data["pitcher_days_since_prev_game"].median()),
+                step=1,
+)
+            hp_official_id = st.selectbox(
+                "Home Plate Umpire", data["hp_official_name"].dropna().unique()
+            )
+            submitted = st.form_submit_button("Predict")
+
+    def summarize(df, batter_hand):
+        grouped = df.groupby(["zone_col", "zone_row"])
+        zones = pd.DataFrame({
+            "n_pitches": grouped.size(),
+            "wrong_rate": grouped["wrong_call"].mean(),
+            "model_score": grouped["pred_prob"].mean(),
+        })
+
+        # Make sure all 25 zones are there
+        all_zones = pd.MultiIndex.from_product([range(-2, 3), range(1, 6)],
+                                            names=["zone_col", "zone_row"])
+        zones = zones.reindex(all_zones).reset_index()
+        zones["n_pitches"] = zones["n_pitches"].fillna(0).astype(int)
+        zones["enough_data"] = zones["n_pitches"] >= MIN_PITCHES
+
+        names = [zone_name(c, r, batter_hand) for c, r in zip(zones["zone_col"], zones["zone_row"])]
+        zones["short_name"] = [n[0] for n in names]
+        zones["long_name"] = [n[1] for n in names]
+        return zones  
+
+    def predict_zones(B,user_vals):
+        hand = user_vals['stand']
+        rows = []
+        keys = []
+        for row in range (1,6):
+            for col in range(-2,3):
+                batter_col = -col if hand == "L" else col
+                cell = (batter_col + 2) + ( (row - 1) * 5)
+                r = {
+                **B["defaults"], 
+                **user_vals, 
+                **B["cell_flags"].loc[cell].to_dict()
+                }
+                rows.append(r)
+                keys.append((col,row))
+        X = pd.DataFrame(rows)[list(B["dtypes"]).astype(B["dtypes"])]
+        prob = B["model"].predict_proba(X)[:, 1]
+        pred_df = pd.DataFrame(keys, columns=["zone_col", "zone_row"]).assign(wrong_call=p, pred_prob=p)
+        zones = summarize(pred_df, hand)
+        zones["enough_data"] = True
+        zones["n_pitches"] = 0
+        return zones
+
+    st.dataframe(data)
+    st.dataframe(pd.DataFrame(model["ump_map"]))
+        #pressed    = st.form_submit_button("Predict")
+        
 
 
 
