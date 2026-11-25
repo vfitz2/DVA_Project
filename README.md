@@ -11,6 +11,11 @@ The code is organized in a series of Jupyter notebooks. All notebook paths are r
 
  ```
 📦Code
+ ┣ 📂App
+ ┃ ┣ 📂data
+ ┃ ┃ ┣ 📜.gitkeep
+ ┃ ┃ ┗ 📜2025_preds_data.parquet
+ ┃ ┗ 📜app.py
  ┣ 📂Baseline Model Eval
  ┃ ┣ 📜baseline_model_logr.ipynb
  ┃ ┣ 📜baseline_model_nn.ipynb
@@ -55,6 +60,7 @@ The code is organized in a series of Jupyter notebooks. All notebook paths are r
  ┃ ┗ 📜.gitkeep
  ┣ 📂viz
  ┃ ┣ 📜.gitkeep
+ ┃ ┣ 📜2025_preds_data.parquet
  ┃ ┣ 📜2025_preds_summary.csv
  ┃ ┗ 📜viz.ipynb
  ┣ 📜.gitignore
@@ -135,7 +141,7 @@ jupyter lab
 
 # Execution
 
-To rebuild everything run the notebooks in this order.
+To rebuild everything run the notebooks/scripts in this order.
 
 1. Go to Data Collection + EDA Folder:
     1. [Data Collection + EDA/data_retrevial.ipynb](<Data Collection + EDA/data_retrevial.ipynb>)
@@ -154,3 +160,7 @@ To rebuild everything run the notebooks in this order.
 
 4. Go to viz folder:
     1. [viz/viz.ipynb](viz/viz.ipynb)
+5. Run app from root:
+    ```
+    streamlit run App/app.py
+    ```

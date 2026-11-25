@@ -2,10 +2,11 @@ from pathlib import Path
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+import pickle
+DATA_PATH = Path(__file__).parent / "data" / "2025_preds_data.parquet"
+MODEL_PATH = Path(__file__).parent / "data" / "final_model.pkl"
 
-DATA_PATH = PATH = f"../viz/2025_preds_data.parquet"
-
-MIN_PITCHES = 30   # zones with fewer pitches than this are left blank
+MIN_PITCHES = 20   # zones with fewer pitches than this are left blank
 MAX_RATE = 0.30    
 
 # Where to draw the 5x5 grid
@@ -182,6 +183,8 @@ def make_table(zones):
 # UI Page
 st.set_page_config(page_title="ABS Challenge Planner", layout="wide")
 st.title("ABS Challenge Planner")
+mode = st.radio("Data source", ["Historical data", "New prediction"],
+                horizontal=True, label_visibility="collapsed")
 st.caption("Where is the umpire most likely to miss? Pick a situation to see which pitch "
            "locations are worth a challenge.")
 
@@ -193,84 +196,113 @@ def choices(column):
 
     return [ALL] + sorted(data[column].dropna().unique())
 
+def render_hist():
 
-# Sidebar filters
-with st.sidebar:
-    st.header("Batter")
-    batter_hand = st.radio("Bats", ["R", "L"], horizontal=True)
-    home_away = st.selectbox("Batting at", choices("home_away"))
+    # Sidebar filters
+    with st.sidebar:
+        st.header("Batter")
+        batter_hand = st.radio("Bats", ["R", "L"], horizontal=True)
+        home_away = st.selectbox("Batting at", choices("home_away"))
 
-    st.header("Pitcher")
-    pitcher_hand = st.selectbox("Throws", choices("pitcher_hand"))
-    pitcher = st.selectbox("Pitcher", choices("pitcher"))
-    pitch_type = st.selectbox("Pitch type", choices("pitch_type"))
+        st.header("Pitcher")
+        pitcher_hand = st.selectbox("Throws", choices("pitcher_hand"))
+        pitcher = st.selectbox("Pitcher", choices("pitcher"))
+        pitch_type = st.selectbox("Pitch type", choices("pitch_type"))
 
-    st.header("Game situation")
-    umpire = st.selectbox("Home plate umpire", choices("umpire"))
-    home_team = st.selectbox("Ballpark (home team)", choices("home_team"))
-    count = st.selectbox("Count (balls-strikes)", choices("count"))
-    inning = st.selectbox("Inning", choices("inning"))
-    outs = st.selectbox("Outs", choices("outs"))
+        st.header("Game situation")
+        umpire = st.selectbox("Home plate umpire", choices("umpire"))
+        home_team = st.selectbox("Ballpark (home team)", choices("home_team"))
+        count = st.selectbox("Count (balls-strikes)", choices("count"))
+        inning = st.selectbox("Inning", choices("inning"))
+        outs = st.selectbox("Outs", choices("outs"))
 
-    st.header("Challenge rule")
-    threshold_pct = st.slider("Challenge when the chance the call is wrong is at least",
-                              min_value=1, max_value=40, value=10, format="%d%%")
+        st.header("Challenge rule")
+        threshold_pct = st.slider("Challenge when the chance the call is wrong is at least",
+                                min_value=1, max_value=40, value=10, format="%d%%")
 
-# Apply the filters
-filtered = data[data["batter_hand"] == batter_hand]
-filters = {"home_away": home_away, "pitcher_hand": pitcher_hand, "pitcher": pitcher,
-           "pitch_type": pitch_type, "umpire": umpire, "home_team": home_team,
-           "count": count, "inning": inning, "outs": outs}
-for column, value in filters.items():
-    if value != ALL:
-        filtered = filtered[filtered[column] == value]
+    # Apply the filters
+    filtered = data[data["batter_hand"] == batter_hand]
+    filters = {"home_away": home_away, "pitcher_hand": pitcher_hand, "pitcher": pitcher,
+            "pitch_type": pitch_type, "umpire": umpire, "home_team": home_team,
+            "count": count, "inning": inning, "outs": outs}
+    for column, value in filters.items():
+        if value != ALL:
+            filtered = filtered[filtered[column] == value]
 
-if filtered.empty:
-    st.warning("No data for this combination of filters. Try loosening one of them.")
-    st.stop()
+    if filtered.empty:
+        st.warning("No data for this combination of filters. Try loosening one of them.")
+        st.stop()
 
-zones = summarize(filtered, batter_hand)
-zones["challenge"] = zones["enough_data"] & ((zones["wrong_rate"] * 100).round() >= threshold_pct)
-zones["recommendation"] = zones["challenge"].map({True: "Challenge", False: "Hold"})
-zones.loc[~zones["enough_data"], "recommendation"] = "Too few pitches"
+    zones = summarize(filtered, batter_hand)
+    zones["challenge"] = zones["enough_data"] & ((zones["wrong_rate"] * 100).round() >= threshold_pct)
+    zones["recommendation"] = zones["challenge"].map({True: "Challenge", False: "Hold"})
+    zones.loc[~zones["enough_data"], "recommendation"] = "Too few pitches"
 
-reliable = zones[zones["enough_data"]]
-if reliable.empty:
-    st.warning(f"Every zone has fewer than {MIN_PITCHES} pitches. Try loosening a filter.")
-    st.stop()
+    reliable = zones[zones["enough_data"]]
+    if reliable.empty:
+        st.warning(f"Every zone has fewer than {MIN_PITCHES} pitches. Try loosening a filter.")
+        st.stop()
 
-# Headline numbers
-best = reliable.sort_values("wrong_rate", ascending=False).iloc[0]
-col1, col2, col3 = st.columns(3)
-col1.metric("Zones worth a challenge", f"{zones['challenge'].sum()} of 25")
-col2.metric("Best spot to challenge", best["long_name"],
-            f"{best['wrong_rate']:.0%} chance the call is wrong", delta_color="off")
-col3.metric("Pitches behind this view", f"{zones['n_pitches'].sum():,}")
+    # Headline numbers
+    best = reliable.sort_values("wrong_rate", ascending=False).iloc[0]
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Zones worth a challenge", f"{zones['challenge'].sum()} of 25")
+    col2.metric("Best spot to challenge", best["long_name"],
+                f"{best['wrong_rate']:.0%} chance the call is wrong", delta_color="off")
+    col3.metric("Pitches behind this view", f"{zones['n_pitches'].sum():,}")
 
-# The two charts
-st.caption("Viewed from behind the catcher. Inside/outside are relative to the batter. "
-           f"The dark outline is the strike zone. Zones with fewer than {MIN_PITCHES} pitches are left blank.")
-left, right = st.columns(2)
-with left:
-    st.subheader("Chance the call is wrong")
-    st.plotly_chart(make_chart(zones, False, threshold_pct), width="stretch")
-with right:
-    st.subheader(f"Challenge map (at {threshold_pct}% or higher)")
-    st.plotly_chart(make_chart(zones, True, threshold_pct), width="stretch")
+    # The two charts
+    st.caption("Viewed from behind the catcher. Inside/outside are relative to the batter. "
+            f"The dark outline is the strike zone. Zones with fewer than {MIN_PITCHES} pitches are left blank.")
+    left, right = st.columns(2)
+    with left:
+        st.subheader("Chance the call is wrong")
+        st.plotly_chart(make_chart(zones, False, threshold_pct), width="stretch")
+    with right:
+        st.subheader(f"Challenge map (at {threshold_pct}% or higher)")
+        st.plotly_chart(make_chart(zones, True, threshold_pct), width="stretch")
 
-# Tables
-st.subheader("Best challenge spots")
-table_settings = {
-    "Chance call is wrong": st.column_config.ProgressColumn(
-        format="%.0f%%", min_value=0, max_value=MAX_RATE * 100),
-    "Model score": st.column_config.NumberColumn(
-        format="%.0f%%",
-        help="Average model prediction. It runs well above the real miss rate, "
-             "so use it to compare zones, not as a true probability."),
-}
-st.dataframe(make_table(reliable).head(5), hide_index=True, width="stretch",
-             column_config=table_settings)
-with st.expander("See all 25 zones"):
-    st.dataframe(make_table(zones), hide_index=True, width="stretch",
-                 column_config=table_settings)
-st.caption(f"Data: {len(data):,} called pitches from the 2025 season.")
+    # Tables
+    st.subheader("Best challenge spots")
+    table_settings = {
+        "Chance call is wrong": st.column_config.ProgressColumn(
+            format="%.0f%%", min_value=0, max_value=MAX_RATE * 100),
+        "Model score": st.column_config.NumberColumn(
+            format="%.0f%%",
+            help="Average model prediction. It runs well above the real miss rate, "
+                "so use it to compare zones, not as a true probability."),
+    }
+    st.dataframe(make_table(reliable).head(5), hide_index=True, width="stretch",
+                column_config=table_settings)
+    with st.expander("See all 25 zones"):
+        st.dataframe(make_table(zones), hide_index=True, width="stretch",
+                    column_config=table_settings)
+    st.caption(f"Data: {len(data):,} called pitches from the 2025 season.")
+
+@st.cache_resource
+def load_model():
+    with open(MODEL_PATH, "rb") as f:
+        model = pickle.load(f)
+    model["model"].set_params(xgb__device="cpu")
+    return model
+
+def load_model_data():
+    df = pd.read_parquet(DATA_PATH, columns=columns)
+    return df
+
+def render_predict():
+    st.subheader("Predict a new pitch")
+    model = load_model()
+    data = load_model_data
+    with st.form("predict_form"):
+        c1, c2 = st.columns(2)
+        #stand      = c1.radio("Batter side", data["Batter side"].dropna().unique(), horizontal=True)
+        st.dataframe(model["dtypes"])
+        st.write(data.dtypes)  
+
+
+
+if mode == "Historical data":
+    render_hist()
+else:
+    render_predict()
