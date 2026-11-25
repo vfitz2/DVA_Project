@@ -355,9 +355,15 @@ def render_predict():
                 int(data["pitcher_days_since_prev_game"].median()),
                 step=1,
 )
-            hp_official_id = st.selectbox(
+            hp_official_name = st.selectbox(
                 "Home Plate Umpire", data["hp_official_name"].dropna().unique()
             )
+
+            hp_official_id =  model["ump_map"][hp_official_name]
+            high    = st.checkbox("High")
+            low     = st.checkbox("Low")
+            inside  = st.checkbox("Inside")
+            outside = st.checkbox("Outside")
             
 
             submitted = st.form_submit_button("Predict")
@@ -393,7 +399,6 @@ def render_predict():
                 r = {
                 **B["defaults"], 
                 **user_vals, 
-                **B["cell_flags"].loc[cell].to_dict()
                 }
                 rows.append(r)
                 keys.append((col,row))
@@ -405,9 +410,36 @@ def render_predict():
         zones["n_pitches"] = 0
         return zones
 
-    st.write(model["ump_map"])
-    st.dataframe(data)
-    st.dataframe(pd.DataFrame(model["ump_map"]))
+    # st.write(model["ump_map"])
+    # st.dataframe(data)
+    # st.dataframe(pd.Series(model["ump_map"], name="hp_official_id"))
+
+    if submitted:
+        user_vals = {
+        "release_speed": speed,
+        "release_spin_rate": spin,
+        "pitch_cat": p_cat,
+        "balls": balls,
+        "strikes": strikes,
+        "inning": inning,
+        "outs_when_up": outs,
+        "stand": stand,
+        "p_throws": p_throws,
+        "n_thruorder_pitcher": n_thruorder_pitcher,
+        "sz_top": sz_top,
+        "sz_bot": sz_bot,
+        "called_strike": called_strike,
+        "pitch_number": pitch_number,
+        "pitcher_days_since_prev_game": pitcher_days_since_prev_game,
+        "hp_official_id": hp_official_id,
+        "High": high,
+        "Low": low,
+        "Inside": inside,
+        "Outside": outside,
+        }
+    zones = predict_zones(model, user_vals)
+    st.dataframe(zones)
+    assert len(zones) == 25 and zones["wrong_rate"].between(0, 1).all()
         #pressed    = st.form_submit_button("Predict")
         
 
