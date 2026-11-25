@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 import pickle
+import numpy as np
+
 DATA_PATH = Path(__file__).parent / "data" / "2025_preds_data.parquet"
 MODEL_PATH = Path(__file__).parent / "data" / "final_model.pkl"
 CELL_PATH = Path(__file__).parent / "data" / "cell_data.csv"
@@ -319,7 +321,7 @@ def render_predict():
                 "Pitch Spin Rate", 
                 data["release_spin_rate"].min(),
                 data["release_spin_rate"].max(), 
-                data["release_spin_rate"].median()
+                data["release_spin_rate"].mean()
                 )
             p_cat = st.selectbox("Pitch Category", list(data["pitch_cat"].unique()))
             balls = st.selectbox("Balls", list(data["balls"].unique()))
@@ -333,14 +335,14 @@ def render_predict():
                 "Strike Zone Top (ft)",
                 float(data["sz_top"].min()),
                 float(data["sz_top"].max()),
-                float(data["sz_top"].median()),
+                float(data["sz_top"].mean()),
                 step=0.1,
             )
             sz_bot = st.slider(
                 "Strike Zone Bottom (ft)",
                 float(data["sz_bot"].min()),
                 float(data["sz_bot"].max()),
-                float(data["sz_bot"].median()),
+                float(data["sz_bot"].mean()),
                 step=0.1,
             )
             called_strike = st.selectbox(
@@ -391,11 +393,14 @@ def render_predict():
         return zones  
 
     def predict_zones(B,user_vals):
+        rng = np.random.default_rng(42)
         hand = user_vals['stand']
         flags = ["High", "Low", "Inside", "Outside"]
         combos = load_cell_data().copy()
+        combos["share"] = combos["share"] * rng.uniform(0.99, 1.01, size=len(combos))
         rows = []
         filtered_combos = combos[flags]
+        
 
         for record in filtered_combos.to_dict("records"):
             row = {}
@@ -455,10 +460,10 @@ def render_predict():
         left, right = st.columns(2)
         with left:
             st.subheader("Chance the call is wrong")
-            st.plotly_chart(make_chart(zones, show_challenge=False, threshold_pct=10), width="stretch")
+            st.plotly_chart(make_chart(zones, show_challenge=False, threshold_pct=50), width="stretch")
         with right:
-            st.subheader(f"Challenge map (at 10% or higher)")
-            st.plotly_chart(make_chart(zones, show_challenge=True, threshold_pct=10), width="stretch")
+            st.subheader(f"Challenge map")
+            st.plotly_chart(make_chart(zones, show_challenge=True, threshold_pct=50), width="stretch")
      
         #pressed    = st.form_submit_button("Predict")
         
