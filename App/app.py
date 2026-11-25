@@ -5,6 +5,7 @@ import streamlit as st
 import pickle
 DATA_PATH = Path(__file__).parent / "data" / "2025_preds_data.parquet"
 MODEL_PATH = Path(__file__).parent / "data" / "final_model.pkl"
+CELL_PATH = Path(__file__).parent / "data" / "cell_data.csv"
 
 MIN_PITCHES = 20   # zones with fewer pitches than this are left blank
 MAX_RATE = 0.30    
@@ -290,6 +291,10 @@ def load_model_data(c):
     df = pd.read_parquet(DATA_PATH, columns=c)
     return df
 
+def load_cell_data():
+    df = pd.read_csv(CELL_PATH)
+    return df
+
 def render_predict():
     st.subheader("Predict a new pitch")
     cols = ['release_speed', 'release_spin_rate', 'pitch_cat', 'balls', 'strikes',
@@ -360,10 +365,7 @@ def render_predict():
             )
 
             hp_official_id =  model["ump_map"][hp_official_name]
-            high    = st.checkbox("High")
-            low     = st.checkbox("Low")
-            inside  = st.checkbox("Inside")
-            outside = st.checkbox("Outside")
+
             
 
             submitted = st.form_submit_button("Predict")
@@ -390,21 +392,33 @@ def render_predict():
 
     def predict_zones(B,user_vals):
         hand = user_vals['stand']
+        flags = ["High", "Low", "Inside", "Outside"]
+        combos = load_cell_data().copy()
+        rows = []
+        filtered_combos = combos[flags]
+
+        for record in filtered_combos.to_dict("records"):
+            row = {}
+            row.update(B["defaults"])
+            row.update(user_vals)
+            row.update(record)
+            rows.append(row)
+
+        X = pd.DataFrame(rows)[list(B["dtypes"])].astype(B["dtypes"])
+        combos["prob"] = B["model"].predict_proba(X)[:, 1] * combos["share"]
+        cell_prob = combos.groupby("cell")["prob"].sum()
+        probs = []
         rows = []
         keys = []
+
         for row in range (1,6):
             for col in range(-2,3):
                 batter_col = -col if hand == "L" else col
                 cell = (batter_col + 2) + ( (row - 1) * 5)
-                r = {
-                **B["defaults"], 
-                **user_vals, 
-                }
-                rows.append(r)
+                probs.append(cell_prob.loc[cell])
                 keys.append((col,row))
-        X = pd.DataFrame(rows)[list(B["dtypes"])].astype(B["dtypes"])
-        prob = B["model"].predict_proba(X)[:, 1]
-        pred_df = pd.DataFrame(keys, columns=["zone_col", "zone_row"]).assign(wrong_call=prob, pred_prob=prob)
+
+        pred_df = pd.DataFrame(keys, columns=["zone_col", "zone_row"]).assign(wrong_call=probs, pred_prob=probs)
         zones = summarize(pred_df, hand)
         zones["enough_data"] = True
         zones["n_pitches"] = 0
@@ -432,14 +446,20 @@ def render_predict():
         "pitch_number": pitch_number,
         "pitcher_days_since_prev_game": pitcher_days_since_prev_game,
         "hp_official_id": hp_official_id,
-        "High": high,
-        "Low": low,
-        "Inside": inside,
-        "Outside": outside,
         }
-    zones = predict_zones(model, user_vals)
-    st.dataframe(zones)
-    assert len(zones) == 25 and zones["wrong_rate"].between(0, 1).all()
+        zones = predict_zones(model, user_vals)
+        
+        # The two charts
+        st.caption("Viewed from behind the catcher. Inside/outside are relative to the batter. "
+                f"The dark outline is the strike zone. Zones with fewer than {MIN_PITCHES} pitches are left blank.")
+        left, right = st.columns(2)
+        with left:
+            st.subheader("Chance the call is wrong")
+            st.plotly_chart(make_chart(zones, show_challenge=False, threshold_pct=10), width="stretch")
+        with right:
+            st.subheader(f"Challenge map (at 10% or higher)")
+            st.plotly_chart(make_chart(zones, show_challenge=True, threshold_pct=10), width="stretch")
+     
         #pressed    = st.form_submit_button("Predict")
         
 
