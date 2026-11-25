@@ -310,7 +310,7 @@ def render_predict():
                 data["release_speed"].max(),
                  data["release_speed"].median()
                  )
-            spin = speed = st.slider(
+            spin = st.slider(
                 "Pitch Spin Rate", 
                 data["release_spin_rate"].min(),
                 data["release_spin_rate"].max(), 
@@ -358,6 +358,8 @@ def render_predict():
             hp_official_id = st.selectbox(
                 "Home Plate Umpire", data["hp_official_name"].dropna().unique()
             )
+            
+
             submitted = st.form_submit_button("Predict")
 
     def summarize(df, batter_hand):
@@ -395,14 +397,15 @@ def render_predict():
                 }
                 rows.append(r)
                 keys.append((col,row))
-        X = pd.DataFrame(rows)[list(B["dtypes"]).astype(B["dtypes"])]
+        X = pd.DataFrame(rows)[list(B["dtypes"])].astype(B["dtypes"])
         prob = B["model"].predict_proba(X)[:, 1]
-        pred_df = pd.DataFrame(keys, columns=["zone_col", "zone_row"]).assign(wrong_call=p, pred_prob=p)
+        pred_df = pd.DataFrame(keys, columns=["zone_col", "zone_row"]).assign(wrong_call=prob, pred_prob=prob)
         zones = summarize(pred_df, hand)
         zones["enough_data"] = True
         zones["n_pitches"] = 0
         return zones
 
+    st.write(model["ump_map"])
     st.dataframe(data)
     st.dataframe(pd.DataFrame(model["ump_map"]))
         #pressed    = st.form_submit_button("Predict")
